@@ -94,11 +94,13 @@
         <!-- PANTALLA DE DIBUJO (CELULAR) -->
         <div id="screen-draw" class="hidden flex flex-col h-screen max-w-md mx-auto py-2 justify-between">
             <div class="flex justify-between items-center bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
-                <div class="text-sm font-bold text-pink-400">Dibuja: <span id="draw-word" class="text-white uppercase"></span></div>
+                <div class="text-sm font-bold text-pink-400 flex items-center gap-2">
+                    <span>Dibuja:</span>
+                    <span id="draw-word" class="text-white uppercase font-extrabold"></span>
+                    <span id="visual-hint" class="text-2xl ml-1"></span>
+                </div>
                 <div class="text-lg font-mono font-bold text-yellow-400" id="timer">00:00</div>
             </div>
-
-            <div id="visual-hint" class="hidden text-center text-4xl py-1"></div>
 
             <div class="relative flex-1 bg-white rounded-xl shadow-inner overflow-hidden my-2 border-4 border-slate-700">
                 <canvas id="paintCanvas" class="w-full h-full absolute inset-0"></canvas>
@@ -134,16 +136,16 @@
 
         <!-- PANTALLA DE VOTACIÓN (TV) -->
         <div id="screen-host-voting" class="hidden text-center space-y-6">
-            <h2 class="text-3xl font-bold text-purple-400">✨ ¡Galería de Obras de Arte! ✨</h2>
-            <p class="text-gray-300">¡Vota desde tu celular por tu dibujo favorito!</p>
+            <h2 id="voting-title" class="text-3xl font-bold text-purple-400">✨ ¡Galería de Obras de Arte! ✨</h2>
+            <p id="voting-subtitle" class="text-gray-300">¡Vota desde tu celular por tu dibujo favorito!</p>
             <p class="text-sm text-pink-300 font-semibold" id="host-voting-status">Votos registrados: 0 / 0</p>
             <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto p-2"></div>
         </div>
 
         <!-- PANTALLA DE VOTACIÓN (CELULAR) -->
         <div id="screen-player-voting" class="hidden text-center space-y-4 max-w-md mx-auto bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-xl">
-            <h2 class="text-2xl font-bold text-pink-400">🗳️ ¡Hora de Votar!</h2>
-            <p class="text-sm text-gray-300">Elige el mejor dibujo desde los botones numéricos en pantalla (no puedes votarte a ti mismo).</p>
+            <h2 id="player-voting-title" class="text-2xl font-bold text-pink-400">🗳️ ¡Hora de Votar!</h2>
+            <p id="player-voting-subtitle" class="text-sm text-gray-300">Elige el mejor dibujo desde los botones numéricos en pantalla (no puedes votarte a ti mismo).</p>
             <div id="voting-buttons" class="grid grid-cols-2 gap-3 pt-2"></div>
         </div>
 
@@ -252,10 +254,19 @@
                     document.getElementById('host-word').innerText = state.word;
                     startHostTimer(state.endTime);
                     monitorDrawingsProgress();
-                } else if (state.status === 'voting') {
+                } else if (state.status === 'voting' || state.status === 'tiebreak') {
                     if (hostTimerInterval) clearInterval(hostTimerInterval);
                     document.getElementById('screen-host-drawing').classList.add('hidden');
                     document.getElementById('screen-host-voting').classList.remove('hidden');
+                    
+                    if (state.status === 'tiebreak') {
+                        document.getElementById('voting-title').innerText = "⚠️ ¡EMPATE! Ronda de Desempate ⚠️";
+                        document.getElementById('voting-subtitle').innerText = "Solo se puede votar por los dibujos finalistas empatados.";
+                    } else {
+                        document.getElementById('voting-title').innerText = "✨ ¡Galería de Obras de Arte! ✨";
+                        document.getElementById('voting-subtitle').innerText = "¡Vota desde tu celular por tu dibujo favorito!";
+                    }
+
                     loadGallery();
                     monitorVotesProgress();
                 } else if (state.status === 'podium') {
@@ -340,6 +351,45 @@
 
                     if (votesCount >= totalPlayers && totalPlayers > 0) {
                         db.ref('rooms/' + roomCode + '/votes').off();
+                        checkResultsAndTiebreak();
+                    }
+                });
+            });
+        }
+
+        function checkResultsAndTiebreak() {
+            db.ref('rooms/' + roomCode + '/drawings').once('value', (snapDrawings) => {
+                const drawings = snapDrawings.val() || {};
+                db.ref('rooms/' + roomCode + '/votes').once('value', (snapVotes) => {
+                    const votesMap = snapVotes.val() || {};
+                    const voteCounts = {};
+
+                    Object.values(votesMap).forEach(targetId => {
+                        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+                    });
+
+                    let maxVotes = -1;
+                    let topDrawings = [];
+
+                    Object.keys(drawings).forEach(id => {
+                        const count = voteCounts[id] || 0;
+                        if (count > maxVotes) {
+                            maxVotes = count;
+                            topDrawings = [id];
+                        } else if (count === maxVotes && maxVotes > 0) {
+                            topDrawings.push(id);
+                        }
+                    });
+
+                    // Si hay empate entre 2 o mas dibujos
+                    if (topDrawings.length > 1) {
+                        db.ref('rooms/' + roomCode + '/votes').remove(); // Reiniciar votos para el desempate
+                        db.ref('rooms/' + roomCode + '/gameState').update({
+                            status: 'tiebreak',
+                            tiedPlayers: topDrawings
+                        });
+                    } else {
+                        // Hay un ganador definitivo
                         db.ref('rooms/' + roomCode + '/gameState/status').set('podium');
                     }
                 });
@@ -352,7 +402,7 @@
                 const grid = document.getElementById('gallery-grid');
                 grid.innerHTML = '';
                 
-                db.ref('rooms/' + roomCode + '/votes').once('value', (snapVotes) => {
+                db.ref('rooms/' + roomCode + '/votes').on('value', (snapVotes) => {
                     const votesMap = snapVotes.val() || {};
                     const voteCounts = {};
                     Object.values(votesMap).forEach(targetId => {
@@ -431,12 +481,13 @@
             db.ref('rooms/' + roomCode + '/gameState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if (!state) return;
+
                 if (state.status === 'drawing') {
                     currentWord = state.word;
                     currentHint = state.hint;
                     startDrawingScreen(state.difficulty, state.endTime);
-                } else if (state.status === 'voting') {
-                    startVotingScreen();
+                } else if (state.status === 'voting' || state.status === 'tiebreak') {
+                    startVotingScreen(state.status === 'tiebreak' ? state.tiedPlayers : null);
                 } else if (state.status === 'lobby') {
                     document.getElementById('waiting-status-text').innerText = 'Esperando a que el Host inicie la partida...';
                     document.getElementById('screen-player-waiting').classList.remove('hidden');
@@ -453,10 +504,12 @@
             
             document.getElementById('draw-word').innerText = currentWord;
             const hintEl = document.getElementById('visual-hint');
+            
             if (difficulty === 'facil') {
                 hintEl.innerText = currentHint;
                 hintEl.classList.remove('hidden');
             } else {
+                hintEl.innerText = '';
                 hintEl.classList.add('hidden');
             }
 
@@ -543,10 +596,21 @@
             document.getElementById('screen-player-waiting').classList.remove('hidden');
         }
 
-        function startVotingScreen() {
+        function startVotingScreen(tiedPlayers = null) {
             document.getElementById('screen-draw').classList.add('hidden');
             document.getElementById('screen-player-waiting').classList.add('hidden');
             document.getElementById('screen-player-voting').classList.remove('hidden');
+
+            const titleEl = document.getElementById('player-voting-title');
+            const subtitleEl = document.getElementById('player-voting-subtitle');
+
+            if (tiedPlayers) {
+                titleEl.innerText = "⚠️ Ronda de Desempate";
+                subtitleEl.innerText = "¡Hubo un empate! Vota únicamente por uno de los dibujos empatados:";
+            } else {
+                titleEl.innerText = "🗳️ ¡Hora de Votar!";
+                subtitleEl.innerText = "Elige el mejor dibujo desde los botones numéricos en pantalla (no puedes votarte a ti mismo).";
+            }
 
             db.ref('rooms/' + roomCode + '/drawings').once('value', (snapshot) => {
                 const drawings = snapshot.val() || {};
@@ -554,6 +618,11 @@
                 votingContainer.innerHTML = '';
 
                 Object.entries(drawings).forEach(([id, d], index) => {
+                    // Si estamos en desempate, omitir los que no empataron
+                    if (tiedPlayers && !tiedPlayers.includes(id)) {
+                        return;
+                    }
+
                     const btn = document.createElement('button');
                     btn.className = "bg-slate-700 hover:bg-pink-600 text-white font-bold py-3 px-4 rounded-xl shadow transition text-lg";
                     btn.innerText = `Dibujo #${index + 1} (${d.playerName})`;
