@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>¡A Dibujar en Familia!</title>
-    <!-- Tailwind CSS para diseño moderno y responsive -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Qrious para generar código QR -->
+    <!-- Qrious para QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- Firebase SDK Compatibles -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         canvas { touch-action: none; background: #ffffff; cursor: crosshair; }
@@ -25,10 +28,10 @@
             </h1>
             <p class="text-gray-300 text-lg">Elige cómo deseas unirte a esta partida:</p>
             <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-                <button onclick="setRole('host')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg text-xl transition transform hover:scale-105">
+                <button id="btn-role-host" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg text-xl transition transform active:scale-95">
                     📺 Soy la TV (Host)
                 </button>
-                <button onclick="setRole('player')" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg text-xl transition transform hover:scale-105">
+                <button id="btn-role-player" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg text-xl transition transform active:scale-95">
                     📱 Soy Jugador (Celular)
                 </button>
             </div>
@@ -54,7 +57,7 @@
                 </div>
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Tiempo de dibujo (Minutos): <span id="time-val">2</span>m</label>
-                    <input type="range" id="game-time" min="1" max="10" value="2" class="w-full accent-purple-500" oninput="document.getElementById('time-val').innerText = this.value">
+                    <input type="range" id="game-time" min="1" max="10" value="2" class="w-full accent-purple-500">
                 </div>
             </div>
 
@@ -64,7 +67,7 @@
             </div>
 
             <div>
-                <button onclick="startGame()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg transition">
+                <button id="btn-start-game" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg transition">
                     🚀 ¡Comenzar Partida!
                 </button>
             </div>
@@ -74,7 +77,7 @@
         <div id="screen-player-join" class="hidden text-center space-y-6 max-w-sm mx-auto bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-xl">
             <h2 class="text-2xl font-bold text-pink-400">Únete al Juego</h2>
             <input type="text" id="player-name" placeholder="Tu Nombre" maxlength="15" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-center text-lg focus:outline-none focus:border-pink-500">
-            <button onclick="joinGame()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl shadow-lg text-lg transition">
+            <button id="btn-join-game" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl shadow-lg text-lg transition">
                 Entrar a la Sala
             </button>
         </div>
@@ -92,26 +95,24 @@
                 <div class="text-lg font-mono font-bold text-yellow-400" id="timer">00:00</div>
             </div>
 
-            <!-- Pista visual si es dificultad facil -->
             <div id="visual-hint" class="hidden text-center text-4xl py-1"></div>
 
             <div class="relative flex-1 bg-white rounded-xl shadow-inner overflow-hidden my-2 border-4 border-slate-700">
                 <canvas id="paintCanvas" class="w-full h-full absolute inset-0"></canvas>
             </div>
 
-            <!-- Herramientas de dibujo -->
             <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-2">
                 <div class="flex justify-around items-center">
                     <input type="color" id="brush-color" value="#000000" class="w-10 h-10 rounded cursor-pointer bg-transparent">
-                    <button onclick="setEraser()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-sm">🧹 Borrador</button>
+                    <button id="btn-eraser" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-sm">🧹 Borrador</button>
                     <select id="brush-size" class="bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-sm text-white">
                         <option value="3">Fino</option>
                         <option value="8" selected>Mediano</option>
                         <option value="20">Grueso</option>
                     </select>
-                    <button onclick="clearCanvas()" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">🗑️ Limpiar</button>
+                    <button id="btn-clear" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">🗑️ Limpiar</button>
                 </div>
-                <button onclick="submitDrawing()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition">
+                <button id="btn-submit-drawing" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg transition">
                     📤 Enviar Dibujo
                 </button>
             </div>
@@ -145,19 +146,16 @@
         <div id="screen-podium" class="hidden text-center space-y-6">
             <h2 class="text-4xl font-extrabold text-yellow-400">🏆 ¡Tenemos un Ganador! 🏆</h2>
             <div id="winner-announcement" class="bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl max-w-md mx-auto space-y-4"></div>
-            <button onclick="resetGame()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg transition">
+            <button id="btn-reset-game" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg transition">
                 🔄 Jugar Otra Partida
             </button>
         </div>
 
     </div>
 
-    <!-- Firebase SDKs por CDN -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, push, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        // CONFIGURACIÓN DE FIREBASE (Tus datos)
+    <!-- Script de lógica en JS Estándar -->
+    <script>
+        // CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCZ6f02sk7WnVKpux29jEcZqQgBuegjwr8",
             authDomain: "el-ma-mejor-dibujo.firebaseapp.com",
@@ -169,15 +167,14 @@
             measurementId: "G-GYCP002584"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Variables globales del juego
         let role = '';
         let myName = '';
-        let playerId = 'player_' + Math.random().toString(36.substring(2, 9));
-        let roomCode = 'sala_familia'; // Sala única compartida en red local
-        let canvas, ctx, painting = false, currentWord = '', currentHint = '';
+        let playerId = 'player_' + Math.random().toString(36).substring(2, 9);
+        let roomCode = 'sala_familia';
+        let canvas, ctx, currentWord = '', currentHint = '';
         let wordsList = [
             { word: 'león', hint: '🦁' },
             { word: 'auto', hint: '🚗' },
@@ -191,7 +188,22 @@
             { word: 'guitarra', hint: '🎸' }
         ];
 
-        window.setRole = function(selectedRole) {
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-role-host').onclick = () => setRole('host');
+            document.getElementById('btn-role-player').onclick = () => setRole('player');
+            document.getElementById('btn-start-game').onclick = startGame;
+            document.getElementById('btn-join-game').onclick = joinGame;
+            document.getElementById('btn-eraser').onclick = () => document.getElementById('brush-color').value = '#ffffff';
+            document.getElementById('btn-clear').onclick = clearCanvas;
+            document.getElementById('btn-submit-drawing').onclick = submitDrawing;
+            document.getElementById('btn-reset-game').onclick = resetGame;
+            
+            document.getElementById('game-time').oninput = function() {
+                document.getElementById('time-val').innerText = this.value;
+            };
+        });
+
+        function setRole(selectedRole) {
             role = selectedRole;
             document.getElementById('screen-home').classList.add('hidden');
             if (role === 'host') {
@@ -200,16 +212,15 @@
             } else {
                 document.getElementById('screen-player-join').classList.remove('hidden');
             }
-        };
+        }
 
-        // --- MÓDULO HOST (TV) ---
+        // --- HOST (TV) ---
         function initHost() {
             const url = window.location.href.split('#')[0];
             document.getElementById('room-link').innerText = url;
             new QRious({ element: document.getElementById('qrcode'), value: url, size: 180 });
 
-            // Escuchar jugadores
-            onValue(ref(db, 'rooms/' + roomCode + '/players'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/players').on('value', (snapshot) => {
                 const data = snapshot.val() || {};
                 const listEl = document.getElementById('players-list');
                 listEl.innerHTML = '';
@@ -224,8 +235,7 @@
                 document.getElementById('player-count').innerText = count;
             });
 
-            // Escuchar estado del juego
-            onValue(ref(db, 'rooms/' + roomCode + '/gameState'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/gameState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if (!state) return;
                 if (state.status === 'drawing') {
@@ -245,20 +255,20 @@
             });
         }
 
-        window.startGame = function() {
+        function startGame() {
             const difficulty = document.getElementById('game-difficulty').value;
             const minutes = parseInt(document.getElementById('game-time').value);
             const randomItem = wordsList[Math.floor(Math.random() * wordsList.length)];
             const endTime = Date.now() + (minutes * 60 * 1000);
 
-            set(ref(db, 'rooms/' + roomCode + '/gameState'), {
+            db.ref('rooms/' + roomCode + '/gameState').set({
                 status: 'drawing',
                 word: randomItem.word,
                 hint: randomItem.hint,
                 difficulty: difficulty,
                 endTime: endTime
             });
-        };
+        }
 
         function startHostTimer(endTime) {
             const timerEl = document.getElementById('host-timer');
@@ -266,7 +276,7 @@
                 const distance = endTime - Date.now();
                 if (distance < 0) {
                     clearInterval(interval);
-                    set(ref(db, 'rooms/' + roomCode + '/gameState/status'), 'voting');
+                    db.ref('rooms/' + roomCode + '/gameState/status').set('voting');
                     return;
                 }
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -276,7 +286,7 @@
         }
 
         function loadGallery() {
-            onValue(ref(db, 'rooms/' + roomCode + '/drawings'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/drawings').once('value', (snapshot) => {
                 const drawings = snapshot.val() || {};
                 const grid = document.getElementById('gallery-grid');
                 grid.innerHTML = '';
@@ -290,11 +300,11 @@
                     `;
                     grid.appendChild(card);
                 });
-            }, { onlyOnce: true });
+            });
         }
 
         function showPodium() {
-            onValue(ref(db, 'rooms/' + roomCode + '/drawings'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/drawings').once('value', (snapshot) => {
                 const drawings = snapshot.val() || {};
                 let winner = { playerName: 'Nadie', votes: -1, image: '' };
                 Object.values(drawings).forEach(d => {
@@ -308,19 +318,18 @@
                     <img src="${winner.image}" class="w-48 h-48 mx-auto bg-white rounded-xl border-4 border-yellow-400 object-contain">
                     <p class="text-xl text-yellow-400 font-semibold">¡Con ${winner.votes || 0} votos!</p>
                 `;
-            }, { onlyOnce: true });
+            });
         }
 
-        window.resetGame = function() {
-            set(ref(db, 'rooms/' + roomCode + '/gameState'), { status: 'lobby' });
-            set(ref(db, 'rooms/' + roomCode + '/drawings'), null);
+        function resetGame() {
+            db.ref('rooms/' + roomCode + '/gameState').set({ status: 'lobby' });
+            db.ref('rooms/' + roomCode + '/drawings').remove();
             document.getElementById('screen-podium').classList.add('hidden');
             document.getElementById('screen-host-lobby').classList.remove('hidden');
-        };
+        }
 
-
-        // --- MÓDULO JUGADOR (CELULAR) ---
-        window.joinGame = function() {
+        // --- JUGADOR (CELULAR) ---
+        function joinGame() {
             const nameInput = document.getElementById('player-name').value.trim();
             if (!nameInput) {
                 alert('Por favor ingresa tu nombre');
@@ -329,13 +338,12 @@
             myName = nameInput;
             document.getElementById('display-name').innerText = myName;
 
-            set(ref(db, 'rooms/' + roomCode + '/players/' + playerId), { name: myName });
+            db.ref('rooms/' + roomCode + '/players/' + playerId).set({ name: myName });
 
             document.getElementById('screen-player-join').classList.add('hidden');
             document.getElementById('screen-player-waiting').classList.remove('hidden');
 
-            // Escuchar cambios de estado del juego
-            onValue(ref(db, 'rooms/' + roomCode + '/gameState'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/gameState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if (!state) return;
                 if (state.status === 'drawing') {
@@ -350,7 +358,7 @@
                     document.getElementById('screen-player-voting').classList.add('hidden');
                 }
             });
-        };
+        }
 
         function startDrawingScreen(difficulty, endTime) {
             document.getElementById('screen-player-waiting').classList.add('hidden');
@@ -374,7 +382,6 @@
             canvas = document.getElementById('paintCanvas');
             ctx = canvas.getContext('2d');
             
-            // Ajustar tamaño real del canvas
             canvas.width = canvas.parentElement.clientWidth;
             canvas.height = canvas.parentElement.clientHeight;
 
@@ -417,14 +424,10 @@
             canvas.ontouchmove = draw;
         }
 
-        window.setEraser = function() {
-            document.getElementById('brush-color').value = '#ffffff';
-        };
-
-        window.clearCanvas = function() {
+        function clearCanvas() {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-        };
+        }
 
         function startPlayerTimer(endTime) {
             const timerEl = document.getElementById('timer');
@@ -432,7 +435,7 @@
                 const distance = endTime - Date.now();
                 if (distance < 0) {
                     clearInterval(interval);
-                    submitDrawing(); // Auto-enviar al terminar tiempo
+                    submitDrawing();
                     return;
                 }
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -441,24 +444,23 @@
             }, 1000);
         }
 
-        window.submitDrawing = function() {
+        function submitDrawing() {
             const dataURL = canvas.toDataURL('image/png');
-            const drawingsRef = ref(db, 'rooms/' + roomCode + '/drawings/' + playerId);
-            set(drawingsRef, {
+            db.ref('rooms/' + roomCode + '/drawings/' + playerId).set({
                 playerName: myName,
                 image: dataURL,
                 votes: 0
             });
             document.getElementById('screen-draw').classList.add('hidden');
             document.getElementById('screen-player-waiting').classList.remove('hidden');
-        };
+        }
 
         function startVotingScreen() {
             document.getElementById('screen-draw').classList.add('hidden');
             document.getElementById('screen-player-waiting').classList.add('hidden');
             document.getElementById('screen-player-voting').classList.remove('hidden');
 
-            onValue(ref(db, 'rooms/' + roomCode + '/drawings'), (snapshot) => {
+            db.ref('rooms/' + roomCode + '/drawings').once('value', (snapshot) => {
                 const drawings = snapshot.val() || {};
                 const votingContainer = document.getElementById('voting-buttons');
                 votingContainer.innerHTML = '';
@@ -473,21 +475,17 @@
                         btn.classList.add('opacity-50', 'cursor-not-allowed');
                         btn.innerText += ' (Tuyo)';
                     } else {
-                        btn.onclick = () => {
-                            voteForDrawing(id);
-                        };
+                        btn.onclick = () => voteForDrawing(id);
                     }
                     votingContainer.appendChild(btn);
                 });
-            }, { onlyOnce: true });
+            });
         }
 
         function voteForDrawing(targetId) {
-            const voteRef = ref(db, `rooms/${roomCode}/drawings/${targetId}/votes`);
-            onValue(voteRef, (snapshot) => {
-                const currentVotes = snapshot.val() || 0;
-                set(voteRef, currentVotes + 1);
-            }, { onlyOnce: true });
+            db.ref(`rooms/${roomCode}/drawings/${targetId}/votes`).transaction((currentVotes) => {
+                return (currentVotes || 0) + 1;
+            });
 
             document.getElementById('screen-player-voting').innerHTML = `
                 <h2 class="text-2xl font-bold text-green-400">¡Voto Registrado! 🎉</h2>
