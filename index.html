@@ -66,9 +66,12 @@
                 <ul id="players-list" class="flex flex-wrap justify-center gap-2 max-w-lg mx-auto"></ul>
             </div>
 
-            <div>
+            <div class="flex justify-center gap-4">
                 <button id="btn-start-game" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg transition">
                     🚀 ¡Comenzar Partida!
+                </button>
+                <button id="btn-full-reset" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl text-md shadow-lg transition">
+                    🧹 Reiniciar Sala
                 </button>
             </div>
         </div>
@@ -155,7 +158,6 @@
 
     <!-- Script de lógica en JS Estándar -->
     <script>
-        // CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCZ6f02sk7WnVKpux29jEcZqQgBuegjwr8",
             authDomain: "el-ma-mejor-dibujo.firebaseapp.com",
@@ -192,6 +194,7 @@
             document.getElementById('btn-role-host').onclick = () => setRole('host');
             document.getElementById('btn-role-player').onclick = () => setRole('player');
             document.getElementById('btn-start-game').onclick = startGame;
+            document.getElementById('btn-full-reset').onclick = fullResetRoom;
             document.getElementById('btn-join-game').onclick = joinGame;
             document.getElementById('btn-eraser').onclick = () => document.getElementById('brush-color').value = '#ffffff';
             document.getElementById('btn-clear').onclick = clearCanvas;
@@ -214,7 +217,6 @@
             }
         }
 
-        // --- HOST (TV) ---
         function initHost() {
             const url = window.location.href.split('#')[0];
             document.getElementById('room-link').innerText = url;
@@ -253,6 +255,14 @@
                     showPodium();
                 }
             });
+        }
+
+        function fullResetRoom() {
+            if (confirm("¿Estás seguro de reiniciar la sala y borrar todos los jugadores?")) {
+                db.ref('rooms/' + roomCode).remove().then(() => {
+                    location.reload();
+                });
+            }
         }
 
         function startGame() {
@@ -328,7 +338,6 @@
             document.getElementById('screen-host-lobby').classList.remove('hidden');
         }
 
-        // --- JUGADOR (CELULAR) ---
         function joinGame() {
             const nameInput = document.getElementById('player-name').value.trim();
             if (!nameInput) {
