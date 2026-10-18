@@ -80,7 +80,7 @@
         <div id="screen-player-join" class="hidden text-center space-y-6 max-w-sm mx-auto bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-xl">
             <h2 class="text-2xl font-bold text-pink-400">Únete al Juego</h2>
             <input type="text" id="player-name" placeholder="Tu Nombre" maxlength="15" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-center text-lg focus:outline-none focus:border-pink-500">
-            <button id="btn-join-game" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl shadow-lg text-lg transition">
+            <button id="btn-join-game" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl shadow-lg transition">
                 Entrar a la Sala
             </button>
         </div>
@@ -178,7 +178,7 @@
 
         let role = '';
         let myName = '';
-        let playerId = 'player_' + Math.random().toString(36).substring(2, 9);
+        let playerId = ''; // Se generará basándose en el nombre de usuario
         let roomCode = 'sala_familia';
         let canvas, ctx, currentWord = '', currentHint = '';
         let hostTimerInterval = null;
@@ -396,10 +396,16 @@
 
         function loadGallery() {
             db.ref('rooms/' + roomCode + '/drawings').on('value', (snapshot) => {
-                const drawings = snapshot.val() || {};
+                const rawDrawings = snapshot.val() || {};
                 const grid = document.getElementById('gallery-grid');
                 grid.innerHTML = '';
                 
+                // Asegurar únicos por ID de usuario
+                const drawings = {};
+                Object.entries(rawDrawings).forEach(([id, d]) => {
+                    drawings[id] = d;
+                });
+
                 db.ref('rooms/' + roomCode + '/votes').on('value', (snapVotes) => {
                     const votesMap = snapVotes.val() || {};
                     const voteCounts = {};
@@ -469,6 +475,8 @@
                 return;
             }
             myName = nameInput;
+            // ID único persistente basado en el nombre de usuario normalizado
+            playerId = 'user_' + myName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             document.getElementById('display-name').innerText = myName;
 
             db.ref('rooms/' + roomCode + '/players/' + playerId).set({ name: myName });
@@ -610,11 +618,15 @@
                 subtitleEl.innerText = "Elige el mejor dibujo desde los botones numéricos en pantalla (no puedes votarte a ti mismo).";
             }
 
-            // Usar .on() para escuchar los dibujos en tiempo real y asegurar que carguen todos los jugadores
             db.ref('rooms/' + roomCode + '/drawings').on('value', (snapshot) => {
-                const drawings = snapshot.val() || {};
+                const rawDrawings = snapshot.val() || {};
                 const votingContainer = document.getElementById('voting-buttons');
                 votingContainer.innerHTML = '';
+
+                const drawings = {};
+                Object.entries(rawDrawings).forEach(([id, d]) => {
+                    drawings[id] = d;
+                });
 
                 Object.entries(drawings).forEach(([id, d], index) => {
                     if (tiedPlayers && !tiedPlayers.includes(id)) {
@@ -639,7 +651,7 @@
 
         function voteForDrawing(targetId) {
             db.ref('rooms/' + roomCode + '/votes/' + playerId).set(targetId);
-            db.ref('rooms/' + roomCode + '/drawings').off(); // Desactivar listener de dibujos
+            db.ref('rooms/' + roomCode + '/drawings').off();
 
             document.getElementById('screen-player-voting').classList.add('hidden');
             document.getElementById('waiting-status-text').innerText = '¡Voto registrado! Esperando que el resto vote para ver los resultados en la TV...';
