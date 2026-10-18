@@ -178,13 +178,14 @@
 
         let role = '';
         let myName = '';
-        let playerId = ''; // Se generará basándose en el nombre de usuario
+        let playerId = '';
         let roomCode = 'sala_familia';
         let canvas, ctx, currentWord = '', currentHint = '';
         let hostTimerInterval = null;
         let playerTimerInterval = null;
 
-        let wordsList = [
+        // Banco extendido de palabras con emojis
+        const wordsList = [
             { word: 'león', hint: '🦁' },
             { word: 'auto', hint: '🚗' },
             { word: 'casa', hint: '🏠' },
@@ -194,8 +195,52 @@
             { word: 'pescado', hint: '🐟' },
             { word: 'sombrero', hint: '🎩' },
             { word: 'banana', hint: '🍌' },
-            { word: 'guitarra', hint: '🎸' }
+            { word: 'guitarra', hint: '🎸' },
+            { word: 'perro', hint: '🐶' },
+            { word: 'avión', hint: '✈️' },
+            { word: 'sol', hint: '☀️' },
+            { word: 'luna', hint: '🌙' },
+            { word: 'flor', hint: '🌻' },
+            { word: 'manzana', hint: '🍎' },
+            { word: 'pizza', hint: '🍕' },
+            { word: 'pelota', hint: '⚽' },
+            { word: 'barco', hint: '⛵' },
+            { word: 'bicicleta', hint: '🚲' },
+            { word: 'robot', hint: '🤖' },
+            { word: 'fantasma', hint: '👻' },
+            { word: 'reloj', hint: '⏰' },
+            { word: 'elefante', hint: '🐘' },
+            { word: 'mariposa', hint: '🦋' },
+            { word: 'hamburguesa', hint: '🍔' },
+            { word: 'helado', hint: '🍦' },
+            { word: 'dinosaurio', hint: '🦕' },
+            { word: 'castillo', hint: '🏰' },
+            { word: 'corona', hint: '👑' },
+            { word: 'serpiente', hint: '🐍' },
+            { word: 'tiburón', hint: '🦈' },
+            { word: 'teléfono', hint: '📱' },
+            { word: 'computadora', hint: '💻' },
+            { word: 'llave', hint: '🔑' },
+            { word: 'lentes', hint: '👓' },
+            { word: 'silla', hint: '🪑' },
+            { word: 'cama', hint: '🛏️' },
+            { word: 'globo', hint: '🎈' },
+            { word: 'regalo', hint: '🎁' },
+            { word: 'paraguas', hint: '☂️' },
+            { word: 'zapato', hint: '👟' },
+            { word: 'camión', hint: '🚛' },
+            { word: 'tren', hint: '🚂' },
+            { word: 'pájaro', hint: '🐦' },
+            { word: 'tortuga', hint: '🐢' },
+            { word: 'mono', hint: '🐒' },
+            { word: 'pingüino', hint: '🐧' },
+            { word: 'zanahoria', hint: '🥕' },
+            { word: 'uvas', hint: '🍇' },
+            { word: 'sandía', hint: '🍉' },
+            { word: 'pastel', hint: '🎂' }
         ];
+
+        let availableWordsQueue = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-role-host').onclick = () => setRole('host');
@@ -212,6 +257,14 @@
                 document.getElementById('time-val').innerText = this.value;
             };
         });
+
+        function getRandomWordWithoutRepetition() {
+            if (availableWordsQueue.length === 0) {
+                // Mezclar de nuevo todas las palabras cuando se agoten
+                availableWordsQueue = [...wordsList].sort(() => Math.random() - 0.5);
+            }
+            return availableWordsQueue.pop();
+        }
 
         function setRole(selectedRole) {
             role = selectedRole;
@@ -288,7 +341,7 @@
         function startGame() {
             const difficulty = document.getElementById('game-difficulty').value;
             const minutes = parseInt(document.getElementById('game-time').value);
-            const randomItem = wordsList[Math.floor(Math.random() * wordsList.length)];
+            const randomItem = getRandomWordWithoutRepetition();
             const endTime = Date.now() + (minutes * 60 * 1000);
 
             db.ref('rooms/' + roomCode + '/votes').remove();
@@ -400,7 +453,6 @@
                 const grid = document.getElementById('gallery-grid');
                 grid.innerHTML = '';
                 
-                // Asegurar únicos por ID de usuario
                 const drawings = {};
                 Object.entries(rawDrawings).forEach(([id, d]) => {
                     drawings[id] = d;
@@ -475,7 +527,6 @@
                 return;
             }
             myName = nameInput;
-            // ID único persistente basado en el nombre de usuario normalizado
             playerId = 'user_' + myName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             document.getElementById('display-name').innerText = myName;
 
